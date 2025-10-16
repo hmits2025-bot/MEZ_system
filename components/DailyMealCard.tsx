@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, Meal } from '../types';
 import { ChevronDownIcon } from './common/icons';
@@ -55,7 +54,7 @@ const AttendeeSelector: React.FC<{
         <ChevronDownIcon />
       </button>
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-gray-900 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-20 w-full mt-1 bg-gray-900 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
           <ul>
             <li className="p-2 border-b border-gray-700">
                 <label className="flex items-center space-x-2 cursor-pointer w-full">
