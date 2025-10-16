@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { UserData, Meal } from '../types';
+
+import React, { useState, useCallback } from 'react';
+import type { UserData, Person, Meal } from '../types';
 import { ChevronDownIcon } from './common/icons';
 
 interface DailyMealCardProps {
@@ -8,187 +9,150 @@ interface DailyMealCardProps {
   updateUserData: (data: UserData) => void;
 }
 
-const AttendeeSelector: React.FC<{
-  people: UserData['people'];
-  selectedAttendees: string[];
-  onChange: (newAttendees: string[]) => void;
-}> = ({ people, selectedAttendees, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+// Sub-component for meal editing logic to avoid repetition
+interface MealEditorProps {
+    day: string;
+    mealName: string;
+    mealType: 'breakfast' | 'lunch';
+    people: Person[];
+    mealData: Meal;
+    onMealChange: (mealType: 'breakfast' | 'lunch', field: 'cost' | 'attendees', value: number | string[]) => void;
+}
 
-  const handleToggleAttendee = (personId: string) => {
-    const newAttendees = selectedAttendees.includes(personId)
-      ? selectedAttendees.filter(id => id !== personId)
-      : [...selectedAttendees, personId];
-    onChange(newAttendees);
-  };
+const MealEditor: React.FC<MealEditorProps> = ({ day, mealName, mealType, people, mealData, onMealChange }) => {
+    const [isAttendeeSelectorOpen, setIsAttendeeSelectorOpen] = useState(false);
 
-  const handleSelectAll = () => {
-    if (selectedAttendees.length === people.length) {
-      onChange([]);
-    } else {
-      onChange(people.map(p => p.id));
-    }
-  };
+    const handleAttendeeToggle = (personId: string) => {
+        const newAttendees = mealData.attendees.includes(personId)
+            ? mealData.attendees.filter(id => id !== personId)
+            : [...mealData.attendees, personId];
+        onMealChange(mealType, 'attendees', newAttendees);
+    };
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [wrapperRef]);
-  
-  return (
-    <div className="relative" ref={wrapperRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center px-3 py-2 border border-gray-600 bg-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-      >
-        <span>
-          {selectedAttendees.length > 0 ? `${selectedAttendees.length} أشخاص محددين` : 'اختر المشاركين'}
-        </span>
-        <ChevronDownIcon />
-      </button>
-      {isOpen && (
-        <div className="absolute z-20 w-full mt-1 bg-gray-900 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          <ul>
-            <li className="p-2 border-b border-gray-700">
-                <label className="flex items-center space-x-2 cursor-pointer w-full">
-                  <input
-                    type="checkbox"
-                    checked={selectedAttendees.length === people.length && people.length > 0}
-                    onChange={handleSelectAll}
-                    className="form-checkbox h-5 w-5 text-teal-600 bg-gray-800 border-gray-600 rounded focus:ring-teal-500"
-                  />
-                  <span>تحديد الكل</span>
-                </label>
-            </li>
-            {people.map(person => (
-              <li key={person.id} className="p-2 hover:bg-gray-700">
-                <label className="flex items-center space-x-2 cursor-pointer w-full">
-                  <input
-                    type="checkbox"
-                    checked={selectedAttendees.includes(person.id)}
-                    onChange={() => handleToggleAttendee(person.id)}
-                    className="form-checkbox h-5 w-5 text-teal-600 bg-gray-800 border-gray-600 rounded focus:ring-teal-500"
-                  />
-                  <span>{person.name}</span>
-                </label>
-              </li>
-            ))}
-             {people.length === 0 && (
-                <li className="p-3 text-center text-gray-500">
-                    الرجاء إضافة أشخاص أولاً.
-                </li>
-             )}
-          </ul>
+    const handleSelectAll = () => {
+        const allPersonIds = people.map(p => p.id);
+        onMealChange(mealType, 'attendees', allPersonIds);
+    };
+
+    const handleDeselectAll = () => {
+        onMealChange(mealType, 'attendees', []);
+    };
+
+    return (
+        <div className="bg-gray-800 p-4 rounded-md">
+            <h4 className="text-lg font-medium text-teal-400 mb-3">{mealName}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div>
+                    <label htmlFor={`${day}-${mealType}-cost`} className="block text-sm font-medium text-gray-300 mb-1">
+                        التكلفة الإجمالية
+                    </label>
+                    <input
+                        id={`${day}-${mealType}-cost`}
+                        type="number"
+                        step="0.01"
+                        value={mealData.cost || ''}
+                        onChange={(e) => onMealChange(mealType, 'cost', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-600 bg-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="0.00"
+                    />
+                </div>
+                <div className="relative">
+                     <button
+                        type="button"
+                        onClick={() => setIsAttendeeSelectorOpen(!isAttendeeSelectorOpen)}
+                        className="w-full flex justify-between items-center px-3 py-2 border border-gray-600 bg-gray-700 rounded-md text-white"
+                        aria-haspopup="listbox"
+                        aria-expanded={isAttendeeSelectorOpen}
+                    >
+                        <span>
+                            الحاضرون ({mealData.attendees.length})
+                        </span>
+                         <ChevronDownIcon className={`h-5 w-5 transition-transform ${isAttendeeSelectorOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isAttendeeSelectorOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-gray-900 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                           <div className="p-2 flex justify-between border-b border-gray-700 sticky top-0 bg-gray-900">
+                                <button type="button" onClick={handleSelectAll} className="text-xs text-teal-400 hover:text-teal-300">تحديد الكل</button>
+                                <button type="button" onClick={handleDeselectAll} className="text-xs text-orange-400 hover:text-orange-300">إلغاء تحديد الكل</button>
+                           </div>
+                           <ul role="listbox">
+                            {people.map(person => (
+                                <li key={person.id}
+                                    className="p-2 hover:bg-gray-700 cursor-pointer flex items-center"
+                                    onClick={() => handleAttendeeToggle(person.id)}
+                                    role="option"
+                                    aria-selected={mealData.attendees.includes(person.id)}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={mealData.attendees.includes(person.id)}
+                                        readOnly
+                                        className="form-checkbox h-4 w-4 text-teal-600 bg-gray-800 border-gray-600 rounded focus:ring-teal-500 pointer-events-none"
+                                        tabIndex={-1}
+                                    />
+                                    <span className="mr-3">{person.name}</span>
+                                </li>
+                            ))}
+                            {people.length === 0 && <li className="p-2 text-center text-gray-400">لا يوجد أشخاص</li>}
+                           </ul>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
-      )}
-    </div>
-  );
+    );
 };
-
 
 const DailyMealCard: React.FC<DailyMealCardProps> = ({ day, userData, updateUserData }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const dayData = userData.schedule[day];
+  const { people, schedule } = userData;
+  const dayData = schedule[day];
 
-  const handleMealChange = useCallback((
-    mealType: 'breakfast' | 'lunch',
-    field: 'cost' | 'attendees',
-    value: number | string[]
-  ) => {
-    const newUserData = JSON.parse(JSON.stringify(userData)); // Deep copy
-    const mealToUpdate = newUserData.schedule[day][mealType] as Meal;
-    
+  const handleMealChange = useCallback((mealType: 'breakfast' | 'lunch', field: 'cost' | 'attendees', value: number | string[]) => {
+    const newSchedule = JSON.parse(JSON.stringify(schedule)); // Deep copy to avoid mutation issues.
     if (field === 'cost') {
-        mealToUpdate.cost = (value as number);
+        newSchedule[day][mealType].cost = Number(value) || 0;
     } else {
-        mealToUpdate.attendees = value as string[];
+        newSchedule[day][mealType].attendees = value as string[];
     }
-    
-    updateUserData(newUserData);
-  }, [userData, updateUserData, day]);
+    updateUserData({ ...userData, schedule: newSchedule });
+  }, [userData, day, schedule, updateUserData]);
 
   return (
-    <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+    <div className="bg-gray-700 rounded-lg shadow-md transition-all duration-300">
       <button
-        className="w-full flex justify-between items-center p-4 bg-gray-800 hover:bg-gray-700 transition-colors"
+        type="button"
         onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex justify-between items-center p-4 text-left"
+        aria-expanded={isExpanded}
+        aria-controls={`${day}-details`}
       >
-        <h3 className="text-xl font-semibold text-teal-300">{day}</h3>
-        <ChevronDownIcon
-          className={`h-6 w-6 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-        />
+        <h3 className="text-xl font-semibold text-gray-200">{day}</h3>
+        <ChevronDownIcon className={`h-6 w-6 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
       {isExpanded && (
-        <div className="p-4 space-y-6">
-          {/* Breakfast Section */}
-          <div className="space-y-3">
-            <h4 className="text-lg font-medium text-gray-300">الفطور</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">
-                  التكلفة
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={dayData.breakfast.cost}
-                  onChange={(e) => handleMealChange('breakfast', 'cost', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-600 bg-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">
-                  المشاركون
-                </label>
-                <AttendeeSelector
-                  people={userData.people}
-                  selectedAttendees={dayData.breakfast.attendees}
-                  onChange={(newAttendees) => handleMealChange('breakfast', 'attendees', newAttendees)}
-                />
-              </div>
-            </div>
-          </div>
-          {/* Lunch Section */}
-          <div className="space-y-3">
-            <h4 className="text-lg font-medium text-gray-300">الغداء</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">
-                  التكلفة
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={dayData.lunch.cost}
-                  onChange={(e) => handleMealChange('lunch', 'cost', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-600 bg-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">
-                  المشاركون
-                </label>
-                <AttendeeSelector
-                  people={userData.people}
-                  selectedAttendees={dayData.lunch.attendees}
-                  onChange={(newAttendees) => handleMealChange('lunch', 'attendees', newAttendees)}
-                />
-              </div>
-            </div>
-          </div>
+        <div id={`${day}-details`} className="p-4 border-t border-gray-600 space-y-4">
+          <MealEditor
+            day={day}
+            mealName="الفطور"
+            mealType="breakfast"
+            people={people}
+            mealData={dayData.breakfast}
+            onMealChange={handleMealChange}
+          />
+          <MealEditor
+            day={day}
+            mealName="الغداء"
+            mealType="lunch"
+            people={people}
+            mealData={dayData.lunch}
+            onMealChange={handleMealChange}
+          />
         </div>
       )}
     </div>
   );
 };
+
 
 export default DailyMealCard;
