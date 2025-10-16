@@ -1,0 +1,5 @@
+{
+  "name": " Meal Expense Tracker",
+  "description": "A web application for tracking shared meal expenses among a group of users, with data persistence and user-specific accounts. The application is designed in Arabic and supports daily expense logging, balance tracking, and weekly data resets.",
+  "requestFramePermissions": []
+}
