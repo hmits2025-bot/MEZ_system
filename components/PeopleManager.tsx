@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback } from 'react';
 import type { UserData, Person, CalculatedBalance } from '../types';
 import Modal from './common/Modal';
-import { UserAddIcon, TrashIcon } from './common/icons';
+import { UserAddIcon, TrashIcon, PlusCircleIcon } from './common/icons';
 
 interface PeopleManagerProps {
   userData: UserData;
@@ -11,9 +10,13 @@ interface PeopleManagerProps {
 }
 
 const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData, calculatedBalances }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddPersonModalOpen, setIsAddPersonModalOpen] = useState(false);
   const [newPersonName, setNewPersonName] = useState('');
   const [newPersonBalance, setNewPersonBalance] = useState('');
+
+  const [isAddFundsModalOpen, setIsAddFundsModalOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
+  const [amountToAdd, setAmountToAdd] = useState('');
 
   const handleAddPerson = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +39,7 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
 
     setNewPersonName('');
     setNewPersonBalance('');
-    setIsModalOpen(false);
+    setIsAddPersonModalOpen(false);
   }, [userData, updateUserData, newPersonName, newPersonBalance]);
 
   const handleRemovePerson = useCallback((personId: string) => {
@@ -57,12 +60,44 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
     }
   }, [userData, updateUserData]);
 
+  const openAddFundsModal = (person: Person) => {
+    setSelectedPerson(person);
+    setAmountToAdd('');
+    setIsAddFundsModalOpen(true);
+  };
+
+  const handleAddFunds = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPerson) return;
+
+    const funds = parseFloat(amountToAdd) || 0;
+    if (funds <= 0) {
+      alert('الرجاء إدخال مبلغ صحيح.');
+      return;
+    }
+
+    const updatedPeople = userData.people.map(p =>
+      p.id === selectedPerson.id
+        ? { ...p, initialBalance: p.initialBalance + funds }
+        : p
+    );
+
+    updateUserData({
+      ...userData,
+      people: updatedPeople,
+    });
+
+    setIsAddFundsModalOpen(false);
+    setSelectedPerson(null);
+  }, [userData, updateUserData, selectedPerson, amountToAdd]);
+
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
         <h2 className="text-2xl font-bold text-teal-400">الأشخاص</h2>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => setIsAddPersonModalOpen(true)}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
         >
           <UserAddIcon />
@@ -77,7 +112,7 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
               <th className="p-3 text-lg">الرصيد الابتدائي</th>
               <th className="p-3 text-lg">إجمالي الخصومات</th>
               <th className="p-3 text-lg">الرصيد النهائي</th>
-              <th className="p-3 text-lg text-center">حذف</th>
+              <th className="p-3 text-lg text-center">الإجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -90,13 +125,22 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
                   {person.finalBalance.toFixed(2)}
                 </td>
                 <td className="p-3 text-center">
-                  <button
-                    onClick={() => handleRemovePerson(person.id)}
-                    className="text-red-400 hover:text-red-600 transition-colors"
-                    aria-label={`حذف ${person.name}`}
-                  >
-                    <TrashIcon />
-                  </button>
+                  <div className="flex items-center justify-center gap-4">
+                    <button
+                      onClick={() => openAddFundsModal(person)}
+                      className="text-blue-400 hover:text-blue-600 transition-colors"
+                      aria-label={`إضافة رصيد لـ ${person.name}`}
+                    >
+                      <PlusCircleIcon />
+                    </button>
+                    <button
+                      onClick={() => handleRemovePerson(person.id)}
+                      className="text-red-400 hover:text-red-600 transition-colors"
+                      aria-label={`حذف ${person.name}`}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -111,7 +155,7 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
         </table>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="إضافة شخص جديد">
+      <Modal isOpen={isAddPersonModalOpen} onClose={() => setIsAddPersonModalOpen(false)} title="إضافة شخص جديد">
         <form onSubmit={handleAddPerson} className="space-y-4">
           <div>
             <label htmlFor="person-name" className="block text-sm font-medium text-gray-300 mb-1">
@@ -143,7 +187,7 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
           <div className="flex justify-end pt-4">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => setIsAddPersonModalOpen(false)}
               className="mr-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-lg transition-colors"
             >
               إلغاء
@@ -153,6 +197,42 @@ const PeopleManager: React.FC<PeopleManagerProps> = ({ userData, updateUserData,
               className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors"
             >
               إضافة
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isAddFundsModalOpen} onClose={() => setIsAddFundsModalOpen(false)} title={`إضافة رصيد لـِ ${selectedPerson?.name}`}>
+        <form onSubmit={handleAddFunds} className="space-y-4">
+          <div>
+            <label htmlFor="amount-to-add" className="block text-sm font-medium text-gray-300 mb-1">
+              المبلغ المراد إضافته
+            </label>
+            <input
+              id="amount-to-add"
+              type="number"
+              step="0.01"
+              value={amountToAdd}
+              onChange={(e) => setAmountToAdd(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-600 bg-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="0.00"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end pt-4">
+            <button
+              type="button"
+              onClick={() => setIsAddFundsModalOpen(false)}
+              className="mr-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-lg transition-colors"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors"
+            >
+              إضافة الرصيد
             </button>
           </div>
         </form>
